@@ -9,26 +9,54 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob
  
-def triangulate(camera_matrix_left, dist_coeffs_left, camera_matrix_right, dist_coeffs_right, R, T, main_Folder="Calibrate_Alternative"):
+def test(camera_matrix_left, dist_coeffs_left, camera_matrix_right, dist_coeffs_right, R, T, main_Folder="Calibrate_Alternative"):
+    # Take an image used for stereo calibration from camera 1
+    test_img_path1 = f'{main_Folder}/LEFT/14_rgb.png'
+    test_img1 = cv.imread(test_img_path1)
+    gray_test_img1 = cv.cvtColor(test_img1, cv.COLOR_BGR2GRAY)
+
+    # Take the same image from camera 2
+    test_img_path2 = f'{main_Folder}/RIGHT/14_event.png'
+    test_img2 = cv.imread(test_img_path2)
+    gray_test_img2 = cv.cvtColor(test_img2, cv.COLOR_BGR2GRAY)
+
+    # Find chessboard corners in the test image from camera 1
+    ret_test1, corners_test1 = cv.findChessboardCorners(gray_test_img1, (8, 6), None)
+
+    # Now project the points into the second camera
+    if ret_test1:
+        corners_test_refined1 = cv.cornerSubPix(gray_test_img1, corners_test1, (11, 11), (-1, -1), (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+
+        # Map the chessboard corners from camera 1 to camera 2
+        remapped_corners_test1 = cv.convertPointsToHomogeneous(corners_test_refined1).reshape(-1, 3, 1)
+        remapped_corners_test1 = cv.perspectiveTransform(remapped_corners_test1, R)
+
+        # Draw corners on the test image from camera 1
+        img_with_corners1 = cv.drawChessboardCorners(test_img1, (8, 6), corners_test_refined1, ret_test1)
+
+        # Draw mapped points on the corresponding image from camera 2
+        img_with_corners2 = cv.drawChessboardCorners(test_img2, (8, 6), remapped_corners_test1, ret_test1)
+
+        # Display the images
+        cv.imshow('Camera 1', img_with_corners1)
+        cv.imshow('Camera 2', img_with_corners2)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
+
+        # Save the images
+        cv.imwrite(f'{main_Folder}/LEFT/14_rgb_corners.png', img_with_corners1)
+        cv.imwrite(f'{main_Folder}/RIGHT/14_event_corners.png', img_with_corners2)
+
+        # Print mapped corners
+        print("Mapped corners in Camera 2:")
+        for point in remapped_corners_test1:
+            print(point.squeeze())
+
+
     
-    # Load the new pair of images
-    image_left = cv.imread(f"{main_Folder}/LEFT/14_rgb.png")
-    image_right = cv.imread(f"{main_Folder}/RIGHT/14_event.png")
 
-    # Rectify the images
-    image_size = image_left.shape[:2][::-1]
-    R1, R2, P1, P2, Q, _, _ = cv.stereoRectify(camera_matrix_left, dist_coeffs_left, camera_matrix_right, dist_coeffs_right, image_size, R, T)
-    map_left_x, map_left_y = cv.initUndistortRectifyMap(camera_matrix_left, dist_coeffs_left, R1, P1, image_size, cv.CV_32FC1)
-    map_right_x, map_right_y = cv.initUndistortRectifyMap(camera_matrix_right, dist_coeffs_right, R2, P2, image_size, cv.CV_32FC1)
-    rectified_image_left = cv.remap(image_left, map_left_x, map_left_y, cv.INTER_LINEAR)
-    rectified_image_right = cv.remap(image_right, map_right_x, map_right_y, cv.INTER_LINEAR)
 
-    # Find checkerboard corners in the rectified image from camera L
-    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-    pattern_size = (8, 6)  # Change this to the actual size of your checkerboard
-    found_left, corners_left = cv.findChessboardCorners(rectified_image_left, pattern_size)
-
- 
+    pass
    
  
  
@@ -106,8 +134,9 @@ def main(main_Folder="Calibrate_Alternative"):
     camera0_data = [cmtx0, dist0, R0, T0]
     camera1_data = [cmtx1, dist1, R1, T1]
 
+    # Triangulate the points
 
-    #triangulate(cmtx0, dist0, cmtx1, dist1, R, T)
+    test(cmtx0, dist0, cmtx1, dist1, R, T, main_Folder)
 
 if __name__=="__main__":
     main()

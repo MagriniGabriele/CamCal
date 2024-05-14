@@ -139,7 +139,7 @@ def stereo_calibrate(mtx0, dist0, mtx1, dist1, frames_prefix_c0, frames_prefix_c
 
     print('rmse: ', ret)
     cv.destroyAllWindows()
-    return R, T
+    return R, T, E, F
 
 
 
